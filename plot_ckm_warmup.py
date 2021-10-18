@@ -14,11 +14,14 @@ if __name__ == '__main__':
   args = parser.parse_args()
 
   # attempt to locate data files
+  ckm_csv = []
   rsvrlevel_csv = []
   rsvrtemp_csv = []
   circag_csv = []
   ambheat_csv = []
   for filename in os.listdir(args.csv_dir):
+    if "Data_2000" in filename:
+      ckm_csv.append(os.path.join(args.csv_dir, filename))
     if "Data_2100" in filename:
       rsvrlevel_csv.append(os.path.join(args.csv_dir, filename))
     if "Data_2101" in filename:
@@ -30,6 +33,10 @@ if __name__ == '__main__':
 
 
   # create data frames and append any extra found files
+  ckm_df = pd.read_csv(ckm_csv[0], names=PACKET_HEADERS+DATA_HEADER_MAP[DATA_ID_MAP["CKM_STATUS"]])
+  for csv_file in ckm_csv[1:]:
+    ckm_df = ckm_df.append(pd.read_csv(csv_file, names=PACKET_HEADERS+DATA_HEADER_MAP[DATA_ID_MAP["CKM_STATUS"]]))
+
   rsvrlevel_df = pd.read_csv(rsvrlevel_csv[0], names=PACKET_HEADERS+DATA_HEADER_MAP[DATA_ID_MAP["RSVR_STATUS0"]])
   for csv_file in rsvrlevel_csv[1:]:
     rsvrlevel_df = rsvrlevel_df.append(pd.read_csv(csv_file, names=PACKET_HEADERS+DATA_HEADER_MAP[DATA_ID_MAP["RSVR_STATUS0"]]))
@@ -87,17 +94,14 @@ if __name__ == '__main__':
       print ("Could not locate circag(2200) data files in " + args.csv_dir)
       exit()
 
-    fig = make_subplots(x_title="Timestamp(s)", rows=3, cols=1,
+    fig = make_subplots(x_title="Timestamp(s)", rows=2, cols=1,
                         shared_xaxes=True,
                         vertical_spacing=0.02,
-                        row_heights=[0.5, 0.25, 0.25],
-                        specs=[[{"secondary_y": False}], [{"secondary_y": False}], [{"secondary_y": False}]])
+                        row_heights=[0.75, 0.25],
+                        specs=[[{"secondary_y": False}], [{"secondary_y": False}]])
     fig.update_layout(title="CKM Warm Up - LV Temp")
     fig.update_yaxes(title_text="Temp (C)", row=1, col=1)
     fig.update_yaxes(title_text="Volume (mL)", row=2, col=1)
-    fig.update_yaxes(title_text="Heat Mode", row=3, col=1,
-                     tickvals=[1, 2, 3, 4],
-                     ticktext=['preheat', 'body', 'resin', 'inlet'])
     fig.add_trace(
       go.Scatter(x=rsvrtemp_df['timestamp']/1000, y=rsvrtemp_df['inlet_temp'], name='rsvr inlet temp'),
       row=1, col=1,
@@ -122,10 +126,36 @@ if __name__ == '__main__':
       go.Scatter(x=circag_df['timestamp']/1000, y=circag_df['volume'], name='circag volume'),
       row=2, col=1,
     )
-    fig.add_trace(
-      go.Scatter(x=circag_df['timestamp']/1000, y=circag_df['heat_mode'], name='heat mode'),
-      row=3, col=1,
-    )
+    # annotate with ckm states
+    # find start/stop of each state
+    active_df = ckm_df.loc[ckm_df['state'] == 8]
+    fig.add_vrect(x0=active_df["timestamp"].min()/1000, x1=active_df["timestamp"].max()/1000,
+                  annotation_text="active", annotation_position="top left",
+                  fillcolor="green", opacity=0.25, line_width=0)
+
+    circwait_df = ckm_df.loc[ckm_df['state'] == 7]
+    circwait_min = circwait_df["timestamp"].min()/1000
+    circwait_max = circwait_df["timestamp"].max()/1000
+    if (circwait_max-circwait_min)>5:
+      fig.add_vrect(x0=circwait_min, x1=circwait_max,
+                    annotation_text="circ_wait", annotation_position="top left",
+                    fillcolor="yellow", opacity=0.25, line_width=0)
+
+    prime_df = ckm_df.loc[ckm_df['state'] == 6]
+    prime_min = prime_df["timestamp"].min()/1000
+    prime_max = prime_df["timestamp"].max()/1000
+    if (prime_max-prime_min)>5:
+      fig.add_vrect(x0=prime_min, x1=prime_max,
+                    annotation_text="prime", annotation_position="top left",
+                    fillcolor="orange", opacity=0.25, line_width=0)
+
+    preheat_df = ckm_df.loc[ckm_df['state'] == 5]
+    preheat_min = preheat_df["timestamp"].min()/1000
+    preheat_max = preheat_df["timestamp"].max()/1000
+    if (preheat_max-preheat_min)>5:
+      fig.add_vrect(x0=preheat_min, x1=preheat_max,
+                    annotation_text="preheat", annotation_position="top left",
+                    fillcolor="red", opacity=0.25, line_width=0)
   elif args.mode == "lvpump":
     if len(rsvrlevel_csv) == 0:
       print ("Could not locate rsvrlevel(2100) data files in " + args.csv_dir)
