@@ -2,6 +2,7 @@
 PACKET_HEADERS=["data_id","data_name","frame_num","timestamp"]
 
 DATA_ID_MAP={
+  "CKM_STATUS"    : 2000,
   "RSVR_STATUS0"  : 2100, #RSVR_LEVEL
   "RSVR_STATUS1"  : 2101, #RSVR_TEMP
   "CIRCAG_STATUS" : 2200,
@@ -10,6 +11,13 @@ DATA_ID_MAP={
 }
 
 DATA_HEADER_MAP= {
+  DATA_ID_MAP["CKM_STATUS"]        : ["state",
+                                      "mode",
+                                      "fault_bitmask",
+                                      "volume",
+                                      "total_capacity",
+                                      "fault_level",
+                                      "clean_flags"],
   DATA_ID_MAP["RSVR_STATUS0"]      : ["status_bits",
                                       "level",
                                       "volume",
