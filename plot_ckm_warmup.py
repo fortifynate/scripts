@@ -11,6 +11,7 @@ if __name__ == '__main__':
   parser.add_argument("-s", "--save", help="save output",
                       action="store_true")
   parser.add_argument("-m", "--mode", help="Plot Mode", choices=['chamber', 'lvtemp', 'lvpump'], default="lvtemp")
+  parser.add_argument("--state", help="Add State Info", action='store_true')
   args = parser.parse_args()
 
   # attempt to locate data files
@@ -126,36 +127,8 @@ if __name__ == '__main__':
       go.Scatter(x=circag_df['timestamp']/1000, y=circag_df['volume'], name='circag volume'),
       row=2, col=1,
     )
-    # annotate with ckm states
-    # find start/stop of each state
-    active_df = ckm_df.loc[ckm_df['state'] == 8]
-    fig.add_vrect(x0=active_df["timestamp"].min()/1000, x1=active_df["timestamp"].max()/1000,
-                  annotation_text="active", annotation_position="top left",
-                  fillcolor="green", opacity=0.25, line_width=0)
 
-    circwait_df = ckm_df.loc[ckm_df['state'] == 7]
-    circwait_min = circwait_df["timestamp"].min()/1000
-    circwait_max = circwait_df["timestamp"].max()/1000
-    if (circwait_max-circwait_min)>5:
-      fig.add_vrect(x0=circwait_min, x1=circwait_max,
-                    annotation_text="circ_wait", annotation_position="top left",
-                    fillcolor="yellow", opacity=0.25, line_width=0)
 
-    prime_df = ckm_df.loc[ckm_df['state'] == 6]
-    prime_min = prime_df["timestamp"].min()/1000
-    prime_max = prime_df["timestamp"].max()/1000
-    if (prime_max-prime_min)>5:
-      fig.add_vrect(x0=prime_min, x1=prime_max,
-                    annotation_text="prime", annotation_position="top left",
-                    fillcolor="orange", opacity=0.25, line_width=0)
-
-    preheat_df = ckm_df.loc[ckm_df['state'] == 5]
-    preheat_min = preheat_df["timestamp"].min()/1000
-    preheat_max = preheat_df["timestamp"].max()/1000
-    if (preheat_max-preheat_min)>5:
-      fig.add_vrect(x0=preheat_min, x1=preheat_max,
-                    annotation_text="preheat", annotation_position="top left",
-                    fillcolor="red", opacity=0.25, line_width=0)
   elif args.mode == "lvpump":
     if len(rsvrlevel_csv) == 0:
       print ("Could not locate rsvrlevel(2100) data files in " + args.csv_dir)
@@ -190,6 +163,41 @@ if __name__ == '__main__':
   else:
     print ("Unrecognized plot mode: " + args.mode)
     exit()
+
+  # annotate with ckm states
+  # find start/stop of each state
+  if args.state:
+    active_df = ckm_df.loc[ckm_df['state'] == 8]
+    active_min = active_df["timestamp"].min()/1000
+    active_max = active_df["timestamp"].max()/1000
+    if not pd.isna(active_min) and not pd.isna(active_max):
+      fig.add_vrect(x0=active_min, x1=active_max,
+                    annotation_text="active", annotation_position="top left",
+                    fillcolor="green", opacity=0.25, line_width=0)
+
+    circwait_df = ckm_df.loc[ckm_df['state'] == 7]
+    circwait_min = circwait_df["timestamp"].min()/1000
+    circwait_max = circwait_df["timestamp"].max()/1000
+    if (circwait_max-circwait_min)>5:
+      fig.add_vrect(x0=circwait_min, x1=circwait_max,
+                    annotation_text="circ_wait", annotation_position="top left",
+                    fillcolor="yellow", opacity=0.25, line_width=0)
+
+    prime_df = ckm_df.loc[ckm_df['state'] == 6]
+    prime_min = prime_df["timestamp"].min()/1000
+    prime_max = prime_df["timestamp"].max()/1000
+    if (prime_max-prime_min)>5:
+      fig.add_vrect(x0=prime_min, x1=prime_max,
+                    annotation_text="prime", annotation_position="top left",
+                    fillcolor="orange", opacity=0.25, line_width=0)
+
+    preheat_df = ckm_df.loc[ckm_df['state'] == 5]
+    preheat_min = preheat_df["timestamp"].min()/1000
+    preheat_max = preheat_df["timestamp"].max()/1000
+    if (preheat_max-preheat_min)>5:
+      fig.add_vrect(x0=preheat_min, x1=preheat_max,
+                    annotation_text="preheat", annotation_position="top left",
+                    fillcolor="red", opacity=0.25, line_width=0)
 
   # Save the html plot
   if args.save == True:
