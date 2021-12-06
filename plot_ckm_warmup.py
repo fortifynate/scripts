@@ -12,6 +12,9 @@ if __name__ == '__main__':
                       action="store_true")
   parser.add_argument("-m", "--mode", help="Plot Mode", choices=['chamber', 'lvtemp', 'lvpump'], default="lvtemp")
   parser.add_argument("--state", help="Add State Info", action='store_true')
+  parser.add_argument("--align", help="Align timestamps", type=str)
+  parser.add_argument("--data-logger", help="Data Logger File", dest="data_logger")
+  parser.add_argument("--data-logger-offset", help="Data Logger Offset", default=0, type=int, dest="data_logger_offset")
   args = parser.parse_args()
 
   # attempt to locate data files
@@ -32,29 +35,81 @@ if __name__ == '__main__':
     if "Data_2400" in filename:
       ambheat_csv.append(os.path.join(args.csv_dir, filename))
 
-
+  if args.align:
+    align_list = [int(offset) for offset in args.align.split(',')]
+    if len(align_list) != (len(ckm_csv) - 1):
+      print("Number of align offsets(%d) must match the number of CSV files(%d)-1" % (len(align_list), len(ckm_csv)))
+      exit()
+  data_break_timestamps = []
   # create data frames and append any extra found files
+  align_index = 0
   ckm_df = pd.read_csv(ckm_csv[0], names=PACKET_HEADERS+DATA_HEADER_MAP[DATA_ID_MAP["CKM_STATUS"]])
   for csv_file in ckm_csv[1:]:
-    ckm_df = ckm_df.append(pd.read_csv(csv_file, names=PACKET_HEADERS+DATA_HEADER_MAP[DATA_ID_MAP["CKM_STATUS"]]))
+    next_df = pd.read_csv(csv_file, names=PACKET_HEADERS+DATA_HEADER_MAP[DATA_ID_MAP["CKM_STATUS"]])
+    # realign timestamps with an offset of 5s
+    if args.align:
+      last_timestamp = int(ckm_df['timestamp'].tail(1))
+      new_timestamp = last_timestamp+align_list[align_index]
+      timestamp_offset = int(next_df['timestamp'].head(1)) - (new_timestamp)
+      next_df['timestamp'] = next_df['timestamp'].sub(timestamp_offset)
+      align_index+=1
+      data_break_timestamps.append((last_timestamp,new_timestamp))
+    ckm_df = ckm_df.append(next_df)
 
+  align_index = 0
   rsvrlevel_df = pd.read_csv(rsvrlevel_csv[0], names=PACKET_HEADERS+DATA_HEADER_MAP[DATA_ID_MAP["RSVR_STATUS0"]])
   for csv_file in rsvrlevel_csv[1:]:
-    rsvrlevel_df = rsvrlevel_df.append(pd.read_csv(csv_file, names=PACKET_HEADERS+DATA_HEADER_MAP[DATA_ID_MAP["RSVR_STATUS0"]]))
+    next_df = pd.read_csv(csv_file, names=PACKET_HEADERS+DATA_HEADER_MAP[DATA_ID_MAP["RSVR_STATUS0"]])
+    # realign timestamps with an offset of 5s
+    if args.align:
+      last_timestamp = int(rsvrlevel_df['timestamp'].tail(1))
+      timestamp_offset = int(next_df['timestamp'].head(1)) - (last_timestamp + align_list[align_index])
+      next_df['timestamp'] = next_df['timestamp'].sub(timestamp_offset)
+      align_index+=1
+    rsvrlevel_df = rsvrlevel_df.append(next_df)
 
+  align_index = 0
   rsvrtemp_df = pd.read_csv(rsvrtemp_csv[0], names=PACKET_HEADERS+DATA_HEADER_MAP[DATA_ID_MAP["RSVR_STATUS1"]])
   for csv_file in rsvrtemp_csv[1:]:
-    rsvrtemp_df = rsvrtemp_df.append(pd.read_csv(csv_file, names=PACKET_HEADERS+DATA_HEADER_MAP[DATA_ID_MAP["RSVR_STATUS1"]]))
+    next_df = pd.read_csv(csv_file, names=PACKET_HEADERS+DATA_HEADER_MAP[DATA_ID_MAP["RSVR_STATUS1"]])
+    # realign timestamps with an offset of 5s
+    if args.align:
+      last_timestamp = int(rsvrtemp_df['timestamp'].tail(1))
+      timestamp_offset = int(next_df['timestamp'].head(1)) - (last_timestamp + align_list[align_index])
+      next_df['timestamp'] = next_df['timestamp'].sub(timestamp_offset)
+      align_index+=1
+    rsvrtemp_df = rsvrtemp_df.append(next_df)
 
+  align_index = 0
   circag_df = pd.read_csv(circag_csv[0], names=PACKET_HEADERS+DATA_HEADER_MAP[DATA_ID_MAP["CIRCAG_STATUS"]])
   for csv_file in circag_csv[1:]:
-    circag_df = circag_df.append(pd.read_csv(csv_file, names=PACKET_HEADERS+DATA_HEADER_MAP[DATA_ID_MAP["CIRCAG_STATUS"]]))
+    next_df = pd.read_csv(csv_file, names=PACKET_HEADERS+DATA_HEADER_MAP[DATA_ID_MAP["CIRCAG_STATUS"]])
+    # realign timestamps with an offset of 5s
+    if args.align:
+      last_timestamp = int(circag_df['timestamp'].tail(1))
+      timestamp_offset = int(next_df['timestamp'].head(1)) - (last_timestamp + align_list[align_index])
+      next_df['timestamp'] = next_df['timestamp'].sub(timestamp_offset)
+      align_index+=1
+    circag_df = circag_df.append(next_df)
 
   if len(ambheat_csv) > 0:
+    align_index = 0
     ambheat_df = pd.read_csv(ambheat_csv[0], names=PACKET_HEADERS+DATA_HEADER_MAP[DATA_ID_MAP["AMBHEAT_STATUS"]])
     for csv_file in ambheat_csv[1:]:
-      ambheat_df = ambheat_df.append(pd.read_csv(csv_file, names=PACKET_HEADERS+DATA_HEADER_MAP[DATA_ID_MAP["CIRCAG_STATUS"]]))
+      next_df = pd.read_csv(csv_file, names=PACKET_HEADERS+DATA_HEADER_MAP[DATA_ID_MAP["AMBHEAT_STATUS"]])
+      # realign timestamps with an offset of 5s
+      if args.align:
+        last_timestamp = int(ambheat_df['timestamp'].tail(1))
+        timestamp_offset = int(next_df['timestamp'].head(1)) - (last_timestamp + align_list[align_index])
+        next_df['timestamp'] = next_df['timestamp'].sub(timestamp_offset)
+        align_index+=1
+      ambheat_df = ambheat_df.append(next_df)
 
+  if args.data_logger:
+    data_logger_df = pd.read_csv(args.data_logger, parse_dates=[1])
+    # assume data logs every 5 s (based on 12 samples per minute)
+    print(args.data_logger_offset)
+    data_logger_df['timestamp'] = data_logger_df['Number']*5000 + int(ckm_df['timestamp'].head(1))+args.data_logger_offset
 
 
   if args.mode == "chamber":
@@ -119,6 +174,15 @@ if __name__ == '__main__':
       go.Scatter(x=circag_df['timestamp']/1000, y=circag_df['resin_temp'], name='circag resin temp'),
       row=1, col=1,
     )
+    if args.data_logger:
+      fig.add_trace(
+        go.Scatter(x=data_logger_df['timestamp']/1000, y=data_logger_df['Wall Temp'], name='DataLogger Wall Temp'),
+        row=1, col=1,
+      )
+      fig.add_trace(
+        go.Scatter(x=data_logger_df['timestamp']/1000, y=data_logger_df['Base Temp'], name='DataLogger Base Temp'),
+        row=1, col=1,
+      )
     fig.add_trace(
       go.Scatter(x=rsvrlevel_df['timestamp']/1000, y=rsvrlevel_df['volume'], name='rsvr volume'),
       row=2, col=1,
@@ -127,7 +191,10 @@ if __name__ == '__main__':
       go.Scatter(x=circag_df['timestamp']/1000, y=circag_df['volume'], name='circag volume'),
       row=2, col=1,
     )
-
+    fig.add_trace(
+      go.Scatter(x=ckm_df['timestamp']/1000, y=ckm_df['volume'], name='total volume'),
+      row=2, col=1,
+    )
 
   elif args.mode == "lvpump":
     if len(rsvrlevel_csv) == 0:
@@ -197,6 +264,12 @@ if __name__ == '__main__':
     if (preheat_max-preheat_min)>5:
       fig.add_vrect(x0=preheat_min, x1=preheat_max,
                     annotation_text="preheat", annotation_position="top left",
+                    fillcolor="red", opacity=0.25, line_width=0)
+
+  if args.align:
+    for timestamp in data_break_timestamps:
+      fig.add_vrect(x0=timestamp[0]/1000, x1=timestamp[1]/1000,
+                    annotation_text="FH Reset", annotation_position="top left",
                     fillcolor="red", opacity=0.25, line_width=0)
 
   # Save the html plot
