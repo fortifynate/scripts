@@ -26,17 +26,25 @@ if __name__ == '__main__':
       zload_csv.append(os.path.join(args.csv_dir, filename))
 
   # create data frames and append any extra found files
-  zload_df = pd.read_csv(zload_csv[0], names=PACKET_HEADERS+DATA_HEADER_MAP[DATA_ID_MAP["ZLOAD"]], sep="[,;]", converters={'z_arm_load': float_converter, 'z_arm_load_unfiltered': float_converter})
+  zload_df = pd.read_csv(zload_csv[0],
+                         names=PACKET_HEADERS+DATA_HEADER_MAP[DATA_ID_MAP["ZLOAD"]],
+                         sep="[,;]",
+                         converters={'z_arm_load': float_converter, 'z_arm_load_unfiltered': float_converter},
+                         engine='python')
   for csv_file in zload_csv[1:]:
-    next_df = pd.read_csv(csv_file, names=PACKET_HEADERS+DATA_HEADER_MAP[DATA_ID_MAP["ZLOAD"]], sep="[,;]")
+    next_df = pd.read_csv(csv_file,
+                          names=PACKET_HEADERS+DATA_HEADER_MAP[DATA_ID_MAP["ZLOAD"]],
+                          sep="[,;]",
+                          converters={'z_arm_load': float_converter, 'z_arm_load_unfiltered': float_converter},
+                          engine='python')
     zload_df = zload_df.append(next_df)
   zload_df.dropna(inplace=True)
 
   fig = make_subplots(x_title="Timestamp(s)",
                       specs=[[{"secondary_y": True}]])
-  fig.update_layout(title="Load Cell Data - %s" % os.path.basename(args.csv_dir))
+  fig.update_layout(title="Load Cell Data")
   fig.update_yaxes(title_text="Load (N)")
-  fig.update_yaxes(title_text="Position (um)")
+  fig.update_yaxes(title_text="Position (um)", secondary_y=True)
 
   fig.add_trace(
     go.Scatter(x=zload_df['timestamp']/1000, y=zload_df['z_arm_load'], name='z_arm_load'),
@@ -56,5 +64,5 @@ if __name__ == '__main__':
   )
   # Save the html plot
   if args.save == True:
-    fig.write_html(os.path.join(args.csv_dir, "ckm_warm_up_" + args.mode + ".html"))
+    fig.write_html(os.path.join(args.csv_dir, "load_cell_plot.html"))
   fig.show()
