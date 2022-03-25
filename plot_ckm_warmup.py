@@ -3,25 +3,7 @@ import argparse
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import json
-from DataDictionary import DataDictionary
-
-PACKET_HEADERS=["data_id","data_name","frame_num","timestamp"]
-JSON_FILENAME = "DataDictionary/data_dictionary.json"
-
-def load_data_dict():
-  data_dict = DataDictionary.DataDictionary()
-  json_filepath =   json_filepath = os.path.join(os.path.dirname(__file__), JSON_FILENAME)
-  with open(json_filepath, 'r') as json_file:
-    print ("Loading data dictionary from " + json_filepath)
-    dict_json = json.load(json_file)
-    DataDictionary.json_to_controller_dictionary(data_dict.core, dict_json['core'])
-    DataDictionary.json_to_controller_dictionary(data_dict.pmc, dict_json['pmc3'])
-  return data_dict.to_df()
-
-def get_headers_by_id(datadict_df, data_id):
-  headers = PACKET_HEADERS + datadict_df[datadict_df["ID"] == data_id]["Enum Name"].str.lower().to_list()
-  return headers
+from DataIds import *
 
 def generate_databreak_timestamps(csv_list, data_id, datadict_df, align_list):
   data_break_timestamps = []
@@ -42,23 +24,6 @@ def generate_databreak_timestamps(csv_list, data_id, datadict_df, align_list):
   return data_break_timestamps
 
 
-def generate_datastream_df(csv_list, data_id, datadict_df, align_list=[]):
-  align_index = 0
-  headers = get_headers_by_id(datadict_df, data_id)
-  if len(csv_list) == 0:
-    return pd.DataFrame(columns = headers)
-  datastream_df = pd.read_csv(csv_list[0], names=headers)
-  for csv_file in csv_list[1:]:
-    next_df = pd.read_csv(csv_file, names=headers)
-    # realign timestamps with provided offsets
-    if len(align_list) > 0:
-      last_timestamp = int(datastream_df['timestamp'].tail(1))
-      new_timestamp = last_timestamp+align_list[align_index]
-      timestamp_offset = int(next_df['timestamp'].head(1)) - (new_timestamp)
-      next_df['timestamp'] = next_df['timestamp'].sub(timestamp_offset)
-      align_index+=1
-    datastream_df = datastream_df.append(next_df)
-  return datastream_df
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()

@@ -25,15 +25,18 @@ if __name__ == '__main__':
     if "Data_1004" in filename and ".csv" in filename:
       zload_csv.append(os.path.join(args.csv_dir, filename))
 
+  data_dict = load_data_dict()
+
+  headers = get_headers_by_id(data_dict, 1004)
   # create data frames and append any extra found files
   zload_df = pd.read_csv(zload_csv[0],
-                         names=PACKET_HEADERS+DATA_HEADER_MAP[DATA_ID_MAP["ZLOAD"]],
+                         names=headers,
                          sep="[,;]",
                          converters={'z_arm_load': float_converter, 'z_arm_load_unfiltered': float_converter},
                          engine='python')
   for csv_file in zload_csv[1:]:
     next_df = pd.read_csv(csv_file,
-                          names=PACKET_HEADERS+DATA_HEADER_MAP[DATA_ID_MAP["ZLOAD"]],
+                          names=headers,
                           sep="[,;]",
                           converters={'z_arm_load': float_converter, 'z_arm_load_unfiltered': float_converter},
                           engine='python')
@@ -47,19 +50,19 @@ if __name__ == '__main__':
   fig.update_yaxes(title_text="Position (um)", secondary_y=True)
 
   fig.add_trace(
-    go.Scatter(x=zload_df['timestamp']/1000, y=zload_df['z_arm_load'], name='z_arm_load'),
+    go.Scatter(x=zload_df['timestamp']/1000, y=zload_df['z_load_n'], name='z_arm_load', mode='markers'),
     row=1, col=1,
   )
   fig.add_trace(
-    go.Scatter(x=zload_df['timestamp']/1000, y=zload_df['z_arm_load_unfiltered'], name='z_arm_load_unfiltered'),
+    go.Scatter(x=zload_df['timestamp']/1000, y=zload_df['z_load_raw_n'], name='z_arm_load_unfiltered', mode='markers'),
     row=1, col=1,
   )
   fig.add_trace(
-    go.Scatter(x=zload_df['timestamp']/1000, y=zload_df['z_position'], name='z_position'),
+    go.Scatter(x=zload_df['timestamp']/1000, y=zload_df['z_micron_n'], name='z_position'),
     row=1, col=1, secondary_y=True,
   )
   fig.add_trace(
-    go.Scatter(x=zload_df['timestamp']/1000, y=zload_df['z_bp_position'], name='z_bp_position'),
+    go.Scatter(x=zload_df['timestamp']/1000, y=zload_df['z_bp_micron'], name='z_bp_position'),
     row=1, col=1, secondary_y=True,
   )
   # Save the html plot
