@@ -84,7 +84,7 @@ if __name__ == '__main__':
     data_break_timestamps = generate_databreak_timestamps(ckm_csv, 2000, data_dict, align_list)
 
   # check if in full mode
-  ckm_full_mode = not (ckm_df['ckm_status_mode'][0] == 1)
+  ckm_full_mode = (ckm_df['ckm_status_mode'].iat[0] == 1)
 
   if args.data_logger:
     data_logger_df = pd.read_csv(args.data_logger, parse_dates=[1])
@@ -194,7 +194,11 @@ if __name__ == '__main__':
     fig.update_yaxes(title_text="Pump Speed (rpm)", row=1, col=1)
     fig.update_yaxes(title_text="Volume (mL)", row=2, col=1)
     if ckm_full_mode:
-      fig.update_yaxes(title_text="Transfer Pump State", row=2, col=1, secondary_y=True)
+      fig.update_yaxes(title_text="Transfer Pump State", row=2, col=1,
+                       secondary_y=True,
+                       tickvals=[0, 1, 2],
+                       ticktext=['off', 'transfer', 'clear']
+                       )
     fig.add_trace(
       go.Scatter(x=rsvrlevel_df['timestamp']/1000, y=rsvrlevel_df['rsvr_inlet_pump_speed'], name='inlet pump speed'),
       row=1, col=1,
@@ -213,7 +217,7 @@ if __name__ == '__main__':
     )
     if ckm_full_mode:
       fig.add_trace(
-        go.Scatter(x=resag_df['timestamp']/1000, y=resag_df['resag_pump_state'], name='Transfer Pump Mode speed'),
+        go.Scatter(x=resag_df['timestamp']/1000, y=resag_df['resag_pump_state'], name='Transfer Pump Mode'),
         row=2, col=1,
         secondary_y=True,
       )
